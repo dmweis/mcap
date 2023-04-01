@@ -63,6 +63,12 @@ The following records are allowed to appear in the data section:
 
 The last record in the data section MUST be the [Data End](#data-end-op0x0F) record.
 
+#### Use of chunk records
+
+MCAP files can have Schema, Channel, and Message records written directly to the data section, or they can be written into Chunk records to facilitate indexing and compression. For MCAPs that include [Chunk Index](#chunk-index-op0x08) records in the summary section, all Message records should be written into Chunk records.
+
+> Why? The presence of Chunk Index records in the summary section indicates to readers that the MCAP is indexed, and they can use those records to look up messages by log time or topic. However, Message records outside of chunks cannot be indexed, and may not be found by readers using the index.
+
 ### Summary Section
 
 The optional summary section contains records for fast lookup of file information or other data section records.
@@ -92,7 +98,7 @@ The summary offset section aids random access reading.
 
 ## Records
 
-MCAP files may contain a variety of records. Records are identified by a single-byte **opcode**. Record opcodes in the range 0x01-0x7F are reserved for future MCAP format usage. 0x80-0xFF are reserved for application extensions and user proposals.
+MCAP files may contain a variety of records. Records are identified by a single-byte **opcode**. Record opcodes in the range 0x01-0x7F are reserved for future MCAP format usage. 0x80-0xFF are reserved for application extensions and user proposals. 0x00 is not a valid opcode.
 
 All MCAP records are serialized as follows:
 
@@ -172,7 +178,7 @@ The message encoding and schema must match that of the Channel record correspond
 
 A Chunk contains a batch of Schema, Channel, and Message records. The batch of records contained in a chunk may be compressed or uncompressed.
 
-All messages in the chunk must reference channels recorded earlier in the file (in a previous chunk or earlier in the current chunk).
+All messages in the chunk must reference channels recorded earlier in the file (in a previous chunk, earlier in the current chunk, or earlier in the data section).
 
 | Bytes | Name | Type | Description |
 | --- | --- | --- | --- |
@@ -273,8 +279,8 @@ A metadata record contains arbitrary user data in key-value pairs.
 
 | Bytes | Name | Type | Description |
 | --- | --- | --- | --- |
-| 4 + N | name | String | Example: `map_metadata`. |
-| 4 + N | metadata | `Map<string, string>` | Example keys: `robot_id`, `git_sha`, `timezone`, `run_id`. |
+| 4 + N | name | String | Example: `my_company_name_hardware_info`. |
+| 4 + N | metadata | `Map<string, string>` | Example keys: `part_id`, `serial`, `board_revision` |
 
 ### Metadata Index (op=0x0D)
 

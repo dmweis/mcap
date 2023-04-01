@@ -40,6 +40,8 @@ class CompressionType(Enum):
 
 
 class IndexType(Flag):
+    """Determines what indexes should be written to the MCAP file. If in doubt, choose ALL."""
+
     NONE = auto()
     ATTACHMENT = auto()
     CHUNK = auto()
@@ -49,7 +51,19 @@ class IndexType(Flag):
 
 
 class Writer:
-    """Writes MCAP data."""
+    """
+    Writes MCAP data.
+
+    :param output: A filename or stream to write to.
+    :param chunk_size: The maximum size of individual data chunks in a chunked file.
+    :param compression: Compression to apply to chunk data, if any.
+    :param index_types: Indexes to write to the file. See IndexType for possibilities.
+    :param repeat_channels: Repeat channel information at the end of the file.
+    :param repeat_schemas: Repeat schemas at the end of the file.
+    :param use_chunking: Group data in chunks.
+    :param use_statistics: Write statistics record.
+    :param use_summary_offsets: Write summary offset records.
+    """
 
     def __init__(
         self,
@@ -62,20 +76,13 @@ class Writer:
         use_chunking: bool = True,
         use_statistics: bool = True,
         use_summary_offsets: bool = True,
+        enable_crcs: bool = True,
+        enable_data_crcs: bool = False,
     ):
-        """
-        output: The stream to which data should be written.
-        chunk_size: The maximum size of individual data chunks in a chunked file.
-        compression: Compression to apply to chunk data, if any.
-        index_types: Indexes to write to the file. See IndexType for possibilities.
-        repeat_channels: Repeat channel information at the end of the file.
-        repeat_schemas: Repeat schemas at the end of the file.
-        use_chunking: Group data in chunks.
-        use_statistics: Write statistics record.
-        use_summary_offsets: Write summary offset records.
-        """
+        self.__should_close = False
         if isinstance(output, str):
             self.__stream = open(output, "wb")
+            self.__should_close = True
         elif isinstance(output, RawIOBase):
             self.__stream = BufferedWriter(output)
         else:
@@ -106,6 +113,8 @@ class Writer:
         self.__summary_offsets: List[SummaryOffset] = []
         self.__use_statistics = use_statistics
         self.__use_summary_offsets = use_summary_offsets
+        self.__enable_crcs = enable_crcs
+        self.__enable_data_crcs = enable_data_crcs
         self.__data_section_crc = 0
 
     def add_attachment(
@@ -302,17 +311,19 @@ class Writer:
         summary_data = summary_builder.end()
         summary_length = len(summary_data)
 
-        summary_crc = zlib.crc32(summary_data)
-        summary_crc = zlib.crc32(
-            struct.pack(
-                "<BQQQ",  # cspell:disable-line
-                Opcode.FOOTER,
-                8 + 8 + 4,
-                0 if summary_length == 0 else summary_start,
-                summary_offset_start,
-            ),
-            summary_crc,
-        )
+        summary_crc = 0
+        if self.__enable_crcs:
+            summary_crc = zlib.crc32(summary_data)
+            summary_crc = zlib.crc32(
+                struct.pack(
+                    "<BQQQ",  # cspell:disable-line
+                    Opcode.FOOTER,
+                    8 + 8 + 4,
+                    0 if summary_length == 0 else summary_start,
+                    summary_offset_start,
+                ),
+                summary_crc,
+            )
 
         self.__stream.write(summary_data)
 
@@ -324,6 +335,8 @@ class Writer:
 
         self.__flush()
         self.__stream.write(MCAP0_MAGIC)
+        if self.__should_close:
+            self.__stream.close()
 
     def register_channel(
         self,
@@ -390,13 +403,15 @@ class Writer:
             information for use in debugging.
         """
         self.__stream.write(MCAP0_MAGIC)
-        self.__data_section_crc = zlib.crc32(MCAP0_MAGIC, self.__data_section_crc)
+        if self.__enable_data_crcs:
+            self.__data_section_crc = zlib.crc32(MCAP0_MAGIC, self.__data_section_crc)
         Header(profile, library).write(self.__record_builder)
         self.__flush()
 
     def __flush(self):
         data = self.__record_builder.end()
-        self.__data_section_crc = zlib.crc32(data, self.__data_section_crc)
+        if self.__enable_data_crcs:
+            self.__data_section_crc = zlib.crc32(data, self.__data_section_crc)
         self.__stream.write(data)
 
     def __finalize_chunk(self):
@@ -423,7 +438,7 @@ class Writer:
             data=compressed_data,
             message_start_time=self.__chunk_builder.message_start_time,
             message_end_time=self.__chunk_builder.message_end_time,
-            uncompressed_crc=zlib.crc32(chunk_data),
+            uncompressed_crc=zlib.crc32(chunk_data) if self.__enable_crcs else 0,
             uncompressed_size=len(chunk_data),
         )
 

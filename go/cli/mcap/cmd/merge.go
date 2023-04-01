@@ -75,6 +75,9 @@ func (m *mcapMerger) outputChannelID(inputID int, inputChannelID uint16) (uint16
 }
 
 func (m *mcapMerger) outputSchemaID(inputID int, inputSchemaID uint16) (uint16, bool) {
+	if inputSchemaID == 0 {
+		return 0, true
+	}
 	v, ok := m.schemaIDs[schemaID{
 		inputID:  inputID,
 		schemaID: inputSchemaID,
@@ -183,9 +186,11 @@ func (m *mcapMerger) mergeInputs(w io.Writer, inputs []io.Reader) error {
 			}
 			return fmt.Errorf("failed to read first message on input %d: %w", inputID, err)
 		}
-		schema.ID, err = m.addSchema(writer, inputID, schema)
-		if err != nil {
-			return fmt.Errorf("failed to add initial schema for input %d: %w", inputID, err)
+		if schema != nil {
+			_, err = m.addSchema(writer, inputID, schema)
+			if err != nil {
+				return fmt.Errorf("failed to add initial schema for input %d: %w", inputID, err)
+			}
 		}
 		message.ChannelID, err = m.addChannel(writer, inputID, channel)
 		if err != nil {
@@ -226,10 +231,15 @@ func (m *mcapMerger) mergeInputs(w io.Writer, inputs []io.Reader) error {
 		var ok bool
 		newMessage.ChannelID, ok = m.outputChannelID(msg.InputID, newChannel.ID)
 		if !ok {
-			_, ok := m.outputSchemaID(msg.InputID, newSchema.ID)
-			if !ok {
-				// if the schema is unknown, add it to the output
-				m.addSchema(writer, msg.InputID, newSchema)
+			if newSchema != nil {
+				_, ok := m.outputSchemaID(msg.InputID, newSchema.ID)
+				if !ok {
+					// if the schema is unknown, add it to the output
+					_, err := m.addSchema(writer, msg.InputID, newSchema)
+					if err != nil {
+						return fmt.Errorf("failed to add schema: %w", err)
+					}
+				}
 			}
 			newMessage.ChannelID, err = m.addChannel(writer, msg.InputID, newChannel)
 			if err != nil {

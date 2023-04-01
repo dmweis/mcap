@@ -191,18 +191,18 @@ private:
  */
 class MCAP_PUBLIC IChunkWriter : public IWritable {
 public:
-  virtual ~IChunkWriter() = default;
+  virtual ~IChunkWriter() override = default;
 
   /**
    * @brief Called when the writer wants to close the current output Chunk.
    * After this call, `data()` and `size()` should return the data and size of
    * the compressed data.
    */
-  virtual void end() = 0;
+  virtual void end() override = 0;
   /**
    * @brief Returns the size in bytes of the uncompressed data.
    */
-  virtual uint64_t size() const = 0;
+  virtual uint64_t size() const override = 0;
   /**
    * @brief Returns the size in bytes of the compressed data. This will only be
    * called after `end()`.
@@ -383,10 +383,10 @@ public:
   /**
    * @brief Write a metadata record to the output stream.
    *
-   * @param metdata  Named group of key/value string pairs to add.
+   * @param metadata Named group of key/value string pairs to add.
    * @return A non-zero error code on failure.
    */
-  Status write(const Metadata& metdata);
+  Status write(const Metadata& metadata);
 
   /**
    * @brief Current MCAP file-level statistics. This is written as a Statistics

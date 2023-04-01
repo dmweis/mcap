@@ -18,8 +18,7 @@ jobs:
         with:
           node-version: 16.x
           cache: yarn
-
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: echo '::add-matcher::.github/cspell-problem-matcher.json'
       - run: yarn spellcheck --no-progress
 
@@ -33,7 +32,7 @@ jobs:
         with:
           node-version: 16.x
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn workspace @foxglove/mcap-conformance lint:ci
       - run: yarn workspace @foxglove/mcap-conformance typecheck
 
@@ -51,10 +50,8 @@ jobs:
         with:
           path: ~/.conan/data
           key: ${{ runner.os }}-${{ hashFiles('cpp/**/conanfile.py') }}
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
       - run: cd cpp && make ci
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner cpp-
 
@@ -72,7 +69,7 @@ jobs:
         with:
           go-version: 1.18.x
       - run: cd go && make build-conformance-binaries
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner go-
 
@@ -90,7 +87,7 @@ jobs:
         with:
           python-version: 3.7
       - run: cd python && pip install -e mcap
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner py-
 
@@ -104,7 +101,7 @@ jobs:
         with:
           node-version: 16.x
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner ts-
 
@@ -118,7 +115,7 @@ jobs:
         with:
           node-version: 16.x
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner ksy-
 
@@ -136,7 +133,7 @@ jobs:
         with:
           swift-version: "5.7"
       - run: swift build
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner swift-
 
@@ -155,7 +152,7 @@ jobs:
           toolchain: stable
           default: true
       - run: cd rust && cargo build --example=conformance_reader
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn test:conformance:generate-inputs --verify
       - run: yarn test:conformance --runner rust-
 
@@ -168,7 +165,7 @@ jobs:
           node-version: 16.x
           cache: yarn
 
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn docs:lint
 
   cpp:
@@ -179,7 +176,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          lfs: "true"
+          lfs: true
       - uses: actions/cache@v3
         with:
           path: ~/.conan/data
@@ -200,7 +197,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          lfs: "true"
+          lfs: true
       - uses: actions/cache@v3
         with:
           path: ~/.conan/data
@@ -208,7 +205,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.7
-      - run: pip install conan==1.54.0
+      - run: pip install conan~=1.0
       - run: bash build.sh --build-tests-only
       - run: ./test/build/Debug/bin/unit-tests
 
@@ -221,7 +218,8 @@ jobs:
           node-version: 16.x
           cache: yarn
           registry-url: https://registry.npmjs.org
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
+      - run: yarn dedupe --check
       - run: yarn workspace @mcap/core lint:ci
       - run: yarn workspace @mcap/core typecheck
       - run: yarn workspace @mcap/core test
@@ -240,7 +238,7 @@ jobs:
         with:
           node-version: 16.x
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - run: corepack enable && yarn install --immutable
       - run: yarn workspace @foxglove/mcap-example-validate lint:ci
       - run: yarn workspace @foxglove/mcap-example-validate typecheck
       - run: yarn workspace @foxglove/mcap-benchmarks lint:ci
@@ -260,9 +258,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.7
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
-      - run: pip install pipenv==2022.7.24
+      - run: pip install pipenv==2023.2.4
       - run: make lint
       - run: make test
       - run: make examples
@@ -411,7 +407,7 @@ jobs:
     env: ${{ matrix.env }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: "0"
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
@@ -445,7 +441,7 @@ jobs:
         id: extract-version
         run: |
           printf "::set-output name=%s::%s\n" version-number "${GITHUB_REF#refs/tags/releases/mcap-cli/v}"
-      - uses: mislav/bump-homebrew-formula-action@fcd7e28e549f14d3aebc53b4d9e929de579f372f
+      - uses: mislav/bump-homebrew-formula-action@a1aa5acee0698beefeac8f69f2eb8a5f292bf8bb
         with:
           formula-name: mcap
           push-to: foxglove/homebrew-core

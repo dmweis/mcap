@@ -13,7 +13,7 @@
 
 namespace mcap {
 
-#define MCAP_LIBRARY_VERSION "0.9.0"
+#define MCAP_LIBRARY_VERSION "1.0.0"
 
 using SchemaId = uint16_t;
 using ChannelId = uint16_t;
@@ -318,7 +318,7 @@ struct MCAP_PUBLIC Metadata {
 };
 
 /**
- * @brief Metdata Index records are found in the Summary section, providing
+ * @brief Metadata Index records are found in the Summary section, providing
  * summary information for a single Metadata record.
  */
 struct MCAP_PUBLIC MetadataIndex {
@@ -356,10 +356,10 @@ struct MCAP_PUBLIC RecordOffset {
 
   RecordOffset() = default;
   explicit RecordOffset(ByteOffset offset_)
-      : offset(offset_){};
+      : offset(offset_) {}
   RecordOffset(ByteOffset offset_, ByteOffset chunkOffset_)
       : offset(offset_)
-      , chunkOffset(chunkOffset_){};
+      , chunkOffset(chunkOffset_) {}
 
   bool operator==(const RecordOffset& other) const;
   bool operator>(const RecordOffset& other) const;
